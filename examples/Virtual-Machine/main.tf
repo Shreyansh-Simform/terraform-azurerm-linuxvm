@@ -1,21 +1,6 @@
 # Example: Complete Multi-Tier Infrastructure with Virtual Machines
 # This example demonstrates creating a complete infrastructure with multiple VMs,
-# networking components, and security configurations using the VM module
 
-terraform {
-  required_version = ">= 1.0.0"
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = ">= 3.0"
-    }
-  }
-}
-
-# Configure the Azure Provider
-provider "azurerm" {
-  features {}
-}
 
 # Example 1: Complete Single VM Infrastructure
 module "single_vm_example" {

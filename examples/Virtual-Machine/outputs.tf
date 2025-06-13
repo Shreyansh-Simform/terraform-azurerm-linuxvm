@@ -1,140 +1,190 @@
-# Outputs for Virtual Machine Example
-# Based on the multi-tier and secure VM configurations
+# Outputs for Virtual Machine Examples
+# This file provides outputs for all three example scenarios
 
-# Multi-Tier VMs Module Outputs
-output "multi_tier_vm_ids" {
-  description = "Map of multi-tier VM names to their Azure resource IDs"
-  value       = module.multi_tier_vms.vm_ids
-}
-
-output "multi_tier_vm_names" {
-  description = "List of all multi-tier VM names"
-  value       = module.multi_tier_vms.vm_names
-}
-
-output "multi_tier_vm_private_ips" {
-  description = "Map of multi-tier VM names to their private IP addresses"
-  value       = module.multi_tier_vms.vm_private_ips
-}
-
-output "multi_tier_vm_details" {
-  description = "Complete information about multi-tier VMs"
-  value       = module.multi_tier_vms.vm_details
-}
-
-# Secure VM Module Outputs
-output "secure_vm_ids" {
-  description = "Map of secure VM names to their Azure resource IDs"
-  value       = module.secure_vm.vm_ids
-}
-
-output "secure_vm_names" {
-  description = "List of secure VM names"
-  value       = module.secure_vm.vm_names
-}
-
-output "secure_vm_private_ips" {
-  description = "Map of secure VM names to their private IP addresses"
-  value       = module.secure_vm.vm_private_ips
-}
-
-output "secure_vm_details" {
-  description = "Complete information about secure VMs"
-  value       = module.secure_vm.vm_details
-}
-
-# Combined VM Information
-output "all_vm_summary" {
-  description = "Summary of all created VMs across both modules"
+# Example 1: Single VM Outputs
+output "single_vm_summary" {
+  description = "Summary of single VM deployment"
   value = {
-    multi_tier_vms = {
-      total_count = length(module.multi_tier_vms.vm_names)
-      vm_names    = module.multi_tier_vms.vm_names
-      resource_group = azurerm_resource_group.vm_rg.name
-    }
-    secure_vms = {
-      total_count = length(module.secure_vm.vm_names)
-      vm_names    = module.secure_vm.vm_names
-      resource_group = "security-rg"
-    }
-    grand_total = length(module.multi_tier_vms.vm_names) + length(module.secure_vm.vm_names)
+    deployment_summary = module.single_vm_example.deployment_summary
+    vm_details        = module.single_vm_example.vm_details
+    public_ips        = module.single_vm_example.public_ip_addresses
+    resource_group    = module.single_vm_example.resource_group_name
   }
 }
 
-# SSH Connection Information for Multi-Tier VMs
-output "multi_tier_ssh_commands" {
-  description = "SSH connection commands for multi-tier VMs"
+output "single_vm_ssh_command" {
+  description = "SSH connection command for single VM"
+  value = "ssh -i ~/.ssh/id_rsa ${var.admin_username}@${try(values(module.single_vm_example.public_ip_addresses)[0], "no-public-ip")}"
+}
+
+# Example 2: Multi-Tier Application Outputs
+output "multi_tier_summary" {
+  description = "Summary of multi-tier application deployment"
   value = {
-    "web-server-01" = {
-      command = "ssh -i ~/.ssh/id_rsa azureuser@${module.multi_tier_vms.vm_private_ips["web-server-01"]}"
-      tier    = "Web"
-      zone    = "1"
-      os      = "Ubuntu 20.04"
-    }
-    "app-server-01" = {
-      command = "ssh -i ~/.ssh/id_rsa azureuser@${module.multi_tier_vms.vm_private_ips["app-server-01"]}"
-      tier    = "Application"
-      zone    = "2"
-      os      = "RHEL 8"
-    }
-    "db-server-01" = {
-      command = "ssh -i ~/.ssh/id_rsa azureuser@${module.multi_tier_vms.vm_private_ips["db-server-01"]}"
-      tier    = "Database"
-      zone    = "3"
-      os      = "Ubuntu 20.04"
-    }
+    deployment_summary = module.multi_tier_example.deployment_summary
+    vm_details        = module.multi_tier_example.vm_details
+    public_ips        = module.multi_tier_example.public_ip_addresses
+    private_ips       = module.multi_tier_example.vm_private_ips
+    resource_group    = module.multi_tier_example.resource_group_name
   }
 }
 
-
-# VM Configuration Summary by Tier
-output "vm_configuration_by_tier" {
-  description = "VM configurations organized by tier"
+output "multi_tier_connection_info" {
+  description = "Connection information for multi-tier VMs"
   value = {
-    web_tier = {
-      vms = ["web-server-01"]
-      size = "Standard_B2s"
-      storage = "Standard_LRS"
+    web_server = {
+      private_ip = try(module.multi_tier_example.vm_private_ips["web-server"], "N/A")
+      public_ip  = try(module.multi_tier_example.public_ip_addresses["web-pip"], "N/A")
+      ssh_command = "ssh -i ~/.ssh/id_rsa ${var.admin_username}@${try(module.multi_tier_example.public_ip_addresses["web-pip"], "PRIVATE_IP")}"
+      tier = "Web"
       zone = "1"
-      features = ["Basic configuration", "Zone deployment"]
     }
-    app_tier = {
-      vms = ["app-server-01"]
-      size = "Standard_D2s_v3"
-      storage = "Premium_LRS"
+    app_server = {
+      private_ip = try(module.multi_tier_example.vm_private_ips["app-server"], "N/A")
+      ssh_command = "ssh -i ~/.ssh/id_rsa ${var.admin_username}@${try(module.multi_tier_example.vm_private_ips["app-server"], "PRIVATE_IP")}"
+      tier = "Application"
       zone = "2"
-      features = ["Managed identity", "RHEL OS", "Premium storage"]
+      note = "Access via bastion host or private network"
     }
-    db_tier = {
-      vms = ["db-server-01"]
-      size = "Standard_E4s_v3"
-      storage = "Premium_LRS"
+    db_server = {
+      private_ip = try(module.multi_tier_example.vm_private_ips["db-server"], "N/A")
+      ssh_command = "ssh -i ~/.ssh/id_rsa ${var.admin_username}@${try(module.multi_tier_example.vm_private_ips["db-server"], "PRIVATE_IP")}"
+      tier = "Database"
       zone = "3"
-      features = ["Enhanced security", "Secure boot", "vTPM", "Encryption at host", "Managed identity"]
+      security_features = ["Secure Boot", "vTPM", "Encryption at Host", "Managed Identity"]
+      note = "Access via bastion host or private network"
     }
-
+    bastion_host = {
+      public_ip = try(module.multi_tier_example.public_ip_addresses["bastion-pip"], "N/A")
+      ssh_command = "ssh -i ~/.ssh/id_rsa ${var.admin_username}@${try(module.multi_tier_example.public_ip_addresses["bastion-pip"], "PUBLIC_IP")}"
+      purpose = "Jump server for accessing private VMs"
+    }
   }
 }
 
-# Availability Zones Usage
-output "availability_zones_usage" {
-  description = "How VMs are distributed across availability zones"
+# Example 3: Secure VM Outputs
+output "secure_vm_summary" {
+  description = "Summary of secure VM deployment"
   value = {
-    zone_1 = ["web-server-01", "secure-server-01"]
-    zone_2 = ["app-server-01"]
-    zone_3 = ["db-server-01"]
-    high_availability = "VMs distributed across 3 availability zones"
+    deployment_summary = module.secure_vm_example.deployment_summary
+    vm_details        = module.secure_vm_example.vm_details
+    public_ips        = module.secure_vm_example.public_ip_addresses
+    security_features = ["Secure Boot", "vTPM", "Encryption at Host", "Managed Identity", "Accelerated Networking"]
+    subnet_delegation = "Microsoft.ContainerInstance/containerGroups"
+    resource_group    = module.secure_vm_example.resource_group_name
   }
 }
 
-# Operating Systems Summary
-output "operating_systems_summary" {
-  description = "Operating systems used across all VMs"
+output "secure_vm_connection_info" {
+  description = "Connection information for secure VM"
   value = {
-    "Ubuntu_20_04" = ["web-server-01", "db-server-01", "secure-server-01"]
-    "RHEL_8" = ["app-server-01"]
-    total_linux_vms = 4
-    total_windows_vms = 0
+    ssh_command = "ssh -i ~/.ssh/id_rsa ${var.admin_username}@${try(module.secure_vm_example.public_ip_addresses["secure-pip"], "PUBLIC_IP")}"
+    public_ip   = try(module.secure_vm_example.public_ip_addresses["secure-pip"], "N/A")
+    private_ip  = try(module.secure_vm_example.vm_private_ips["secure-server"], "N/A")
+    allowed_source = var.allowed_ssh_source_ip
+    security_note = "SSH access restricted to ${var.allowed_ssh_source_ip}"
+  }
+}
+
+# Combined Infrastructure Summary
+output "complete_infrastructure_summary" {
+  description = "Summary of all deployed infrastructure across examples"
+  value = {
+    total_resource_groups = 3
+    total_virtual_networks = 3
+    total_vms = sum([
+      length(module.single_vm_example.vm_names),
+      length(module.multi_tier_example.vm_names),
+      length(module.secure_vm_example.vm_names)
+    ])
+    total_public_ips = sum([
+      length(module.single_vm_example.public_ip_addresses),
+      length(module.multi_tier_example.public_ip_addresses),
+      length(module.secure_vm_example.public_ip_addresses)
+    ])
+    
+    deployment_breakdown = {
+      single_vm_example = {
+        vms = length(module.single_vm_example.vm_names)
+        resource_group = module.single_vm_example.resource_group_name
+        use_case = "Simple web server deployment"
+      }
+      multi_tier_example = {
+        vms = length(module.multi_tier_example.vm_names)
+        resource_group = module.multi_tier_example.resource_group_name
+        use_case = "3-tier application architecture"
+      }
+      secure_vm_example = {
+        vms = length(module.secure_vm_example.vm_names)
+        resource_group = module.secure_vm_example.resource_group_name
+        use_case = "High-security VM with subnet delegation"
+      }
+    }
+    
+    availability_zones_usage = {
+      zone_1 = ["web-server (single)", "web-server (multi-tier)", "secure-server"]
+      zone_2 = ["app-server (multi-tier)"]
+      zone_3 = ["db-server (multi-tier)"]
+      total_zones_used = 3
+    }
+    
+    security_features_summary = {
+      basic_vms = 1
+      enhanced_security_vms = 2
+      secure_boot_enabled = 2
+      vtpm_enabled = 2
+      encryption_at_host = 2
+      managed_identity_enabled = 2
+    }
+  }
+}
+
+# Network Configuration Summary
+output "network_configuration_summary" {
+  description = "Summary of network configurations across all examples"
+  value = {
+    single_vm_network = {
+      vnet_cidr = "10.0.0.0/16"
+      subnet_cidr = "10.0.1.0/24"
+      public_access = "Direct via Public IP"
+    }
+    multi_tier_network = {
+      vnet_cidr = "10.1.0.0/16"
+      subnet_cidr = "10.1.1.0/24"
+      public_access = "Web tier and Bastion only"
+      private_communication = "App and DB tiers"
+    }
+    secure_vm_network = {
+      vnet_cidr = "10.2.0.0/16"
+      subnet_cidr = "10.2.1.0/24"
+      public_access = "Restricted SSH access"
+      special_features = "Container Instance delegation"
+    }
+  }
+}
+
+# Deployment Instructions
+output "deployment_instructions" {
+  description = "Instructions for deploying the examples"
+  value = {
+    prerequisites = [
+      "Set ssh_public_key variable to your SSH public key content",
+      "Optionally modify allowed_ssh_source_ip for secure VM",
+      "Ensure Azure CLI is authenticated",
+      "Have appropriate Azure permissions"
+    ]
+    deployment_commands = [
+      "terraform init",
+      "terraform plan",
+      "terraform apply"
+    ]
+    cleanup_command = "terraform destroy"
+    notes = [
+      "All examples will be deployed simultaneously",
+      "Each example uses separate resource groups",
+      "Review security group rules before deployment",
+      "Consider costs for multiple VM deployment"
+    ]
   }
 }
 

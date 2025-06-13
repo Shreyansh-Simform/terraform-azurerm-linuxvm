@@ -92,6 +92,14 @@ module "single_vm_example" {
       zone = "1"
     }
   }
+
+  # Example Tags
+  tags = {
+    Environment = "Development"
+    Project     = "SingleVM-Example"
+    Owner       = "DevOps-Team"
+    CostCenter  = "IT-001"
+  }
 }
 
 # Example 2: Multi-Tier Application Infrastructure
@@ -297,6 +305,16 @@ module "multi_tier_example" {
       provision_vm_agent             = true
       allow_extension_operations     = true
     }
+  }
+
+  # Example Tags for Production Multi-Tier Environment
+  tags = {
+    Environment = "Production"
+    Project     = "MultiTier-WebApp"
+    Owner       = "Platform-Team"
+    CostCenter  = "PROD-002"
+    Backup      = "Daily"
+    Compliance  = "SOC2"
   }
 }
 

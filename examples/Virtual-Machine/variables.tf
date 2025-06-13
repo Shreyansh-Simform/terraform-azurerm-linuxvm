@@ -76,14 +76,5 @@ variable "project_name" {
   default     = "vm-examples"
 }
 
-variable "common_tags" {
-  description = "Common tags to apply to all resources"
-  type        = map(string)
-  default = {
-    Environment = "Development"
-    Project     = "VM-Examples"
-    ManagedBy   = "Terraform"
-    CreatedDate = "2025-06-13"
-  }
-}
+
 

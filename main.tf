@@ -2,6 +2,7 @@
 resource "azurerm_resource_group" "vmrg" {
   name     = var.vm_rg_name
   location = var.vm_rg_location
+  tags     = var.tags
 }
 
 resource "azurerm_virtual_network" "myvnet" {
@@ -9,6 +10,7 @@ resource "azurerm_virtual_network" "myvnet" {
   address_space       = var.vm_vnet_address_space
   location            = var.vm_rg_location
   resource_group_name = azurerm_resource_group.vmrg.name
+  tags                = var.tags
 }
 
 resource "azurerm_subnet" "vm-subnet" {
@@ -40,7 +42,7 @@ resource "azurerm_public_ip" "my-pubip" {
   allocation_method   = each.value.allocation_method
   sku                 = each.value.sku
   ip_version          = each.value.ip_version
-
+  tags                = var.tags
 
   lifecycle {
     prevent_destroy = true
@@ -55,6 +57,7 @@ resource "azurerm_network_security_group" "network-nsg" {
   name                = each.key
   location            = var.vm_rg_location
   resource_group_name = azurerm_resource_group.vmrg.name
+  tags                = var.tags
   
   dynamic "security_rule" {
     for_each = each.value.security_rules
@@ -71,7 +74,6 @@ resource "azurerm_network_security_group" "network-nsg" {
     }
   }
   
-
   lifecycle {
     prevent_destroy = true
     create_before_destroy = false
@@ -85,6 +87,7 @@ resource "azurerm_network_interface" "vm-nic" {
   name                          = each.key
   location                      = var.vm_rg_location
   resource_group_name           = var.vm_rg_name
+  tags                          = var.tags
   
 
   ip_configuration {
@@ -133,6 +136,7 @@ resource "azurerm_linux_virtual_machine" "myvm" {
   admin_username        = each.value.admin_username
   network_interface_ids = [for nic_name in each.value.network_interface_names : azurerm_network_interface.vm-nic[nic_name].id]
   admin_password        = lookup(each.value, "admin_password", null)  # Optional admin password
+  tags                  = var.tags
 
   disable_password_authentication = each.value.disable_password_authentication
   provision_vm_agent              = each.value.provision_vm_agent

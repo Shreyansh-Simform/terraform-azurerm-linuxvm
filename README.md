@@ -430,6 +430,25 @@ module "secure_vm_with_delegation" {
 }
 ```
 
+## 🆕 Hybrid Resource Support (New vs Existing)
+
+This module now supports using **both existing and new resources** for:
+- **Public IP Addresses** 
+- **Network Interfaces**
+- **Data Disks**
+
+### Key Benefits:
+- ✅ **Flexibility**: Mix existing and new resources in the same deployment
+- ✅ **Cost Optimization**: Reuse existing resources to avoid recreation costs
+- ✅ **Integration**: Seamlessly integrate with existing infrastructure
+- ✅ **Migration Support**: Gradually migrate workloads using existing components
+
+### How It Works:
+- Set `use_existing = true` for any resource you want to reuse
+- Provide `existing_resource_group_name` for existing resources
+- Module will automatically use data sources to reference existing resources
+- New resources are created normally alongside existing ones
+
 ## Requirements
 
 | Name | Version |

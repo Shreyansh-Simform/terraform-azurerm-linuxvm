@@ -1,3 +1,31 @@
+# Data sources for existing resources
+data "azurerm_public_ip" "existing_public_ips" {
+  for_each = {
+    for ip_name, ip_config in var.public_ip_name : ip_name => ip_config
+    if ip_config.use_existing == true
+  }
+
+  name                = each.key
+  resource_group_name = each.value.existing_resource_group_name
+}
+
+data "azurerm_network_interface" "existing_nics" {
+  for_each = {
+    for nic_name, nic_config in var.network_interfaces : nic_name => nic_config
+    if nic_config.use_existing == true
+  }
+
+  name                = each.key
+  resource_group_name = each.value.existing_resource_group_name
+}
+
+data "azurerm_managed_disk" "existing_data_disks" {
+  for_each = var.existing_data_disks
+
+  name                = each.key
+  resource_group_name = each.value.resource_group_name
+}
+
 # Create multiple/single Linux virtual machines using the configurations 
 resource "azurerm_resource_group" "vmrg" {
   name     = var.vm_rg_name
@@ -32,9 +60,12 @@ resource "azurerm_subnet" "vm-subnet" {
   }
 }
 
-# Create Public IP Addresses
+# Create Public IP Addresses (only for new ones)
 resource "azurerm_public_ip" "my-pubip" {
-  for_each = var.public_ip_name
+  for_each = {
+    for ip_name, ip_config in var.public_ip_name : ip_name => ip_config
+    if ip_config.use_existing != true
+  }
   
   name                = each.key
   resource_group_name = azurerm_resource_group.vmrg.name
@@ -48,6 +79,16 @@ resource "azurerm_public_ip" "my-pubip" {
     prevent_destroy = true
     create_before_destroy = false
   }
+}
+
+# Local to combine new and existing public IPs
+locals {
+  all_public_ips = merge(
+    # New public IPs
+    { for k, v in azurerm_public_ip.my-pubip : k => v },
+    # Existing public IPs  
+    { for k, v in data.azurerm_public_ip.existing_public_ips : k => v }
+  )
 }
 
 # Azure Network Security Group Resource
@@ -80,9 +121,12 @@ resource "azurerm_network_security_group" "network-nsg" {
   }
 }
 
-# Create Network Interfaces
+# Create Network Interfaces (only for new ones)
 resource "azurerm_network_interface" "vm-nic" {
-  for_each = var.network_interfaces
+  for_each = {
+    for nic_name, nic_config in var.network_interfaces : nic_name => nic_config
+    if nic_config.use_existing != true
+  }
 
   name                          = each.key
   location                      = var.vm_rg_location
@@ -95,7 +139,7 @@ resource "azurerm_network_interface" "vm-nic" {
     subnet_id                     = azurerm_subnet.vm-subnet.id
     private_ip_address_allocation = each.value.private_ip_address_allocation
     private_ip_address           = each.value.private_ip_address_allocation == "Static" ? each.value.private_ip_address : null
-    public_ip_address_id         = each.value.public_ip_name != null ? azurerm_public_ip.my-pubip[each.value.public_ip_name].id : null
+    public_ip_address_id         = each.value.public_ip_name != null ? local.all_public_ips[each.value.public_ip_name].id : null
   }
 
   lifecycle {
@@ -109,11 +153,21 @@ resource "azurerm_network_interface" "vm-nic" {
   ]
 }
 
+# Local to combine new and existing network interfaces
+locals {
+  all_network_interfaces = merge(
+    # New network interfaces
+    { for k, v in azurerm_network_interface.vm-nic : k => v },
+    # Existing network interfaces
+    { for k, v in data.azurerm_network_interface.existing_nics : k => v }
+  )
+}
+
 # Associate Network Security Groups with Network Interfaces
 resource "azurerm_network_interface_security_group_association" "nic-nsg-association" {
   for_each = {
     for nic_name, nic_config in var.network_interfaces : nic_name => nic_config
-    if lookup(nic_config, "network_security_group", null) != null
+    if lookup(nic_config, "network_security_group", null) != null && nic_config.use_existing != true
   }
 
   network_interface_id      = azurerm_network_interface.vm-nic[each.key].id
@@ -134,7 +188,7 @@ resource "azurerm_linux_virtual_machine" "myvm" {
   resource_group_name   = azurerm_resource_group.vmrg.name
   size                  = each.value.size
   admin_username        = each.value.admin_username
-  network_interface_ids = [for nic_name in each.value.network_interface_names : azurerm_network_interface.vm-nic[nic_name].id]
+  network_interface_ids = [for nic_name in each.value.network_interface_names : local.all_network_interfaces[nic_name].id]
   admin_password        = lookup(each.value, "admin_password", null)  # Optional admin password
   tags                  = var.tags
 
@@ -177,4 +231,46 @@ resource "azurerm_linux_virtual_machine" "myvm" {
     prevent_destroy = true
     create_before_destroy = false
   }
+}
+
+# Create new data disks
+resource "azurerm_managed_disk" "vm_data_disks" {
+  for_each = var.new_data_disks
+
+  name                 = each.key
+  location             = var.vm_rg_location
+  resource_group_name  = azurerm_resource_group.vmrg.name
+  storage_account_type = each.value.storage_account_type
+  create_option        = "Empty"
+  disk_size_gb         = each.value.disk_size_gb
+  tags                 = var.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Local to combine new and existing data disks
+locals {
+  all_data_disks = merge(
+    # New data disks
+    { for k, v in azurerm_managed_disk.vm_data_disks : k => v },
+    # Existing data disks
+    { for k, v in data.azurerm_managed_disk.existing_data_disks : k => v }
+  )
+}
+
+# Attach data disks to VMs
+resource "azurerm_virtual_machine_data_disk_attachment" "vm_data_disk_attachments" {
+  for_each = var.vm_data_disk_attachments
+
+  managed_disk_id    = local.all_data_disks[each.value.disk_name].id
+  virtual_machine_id = azurerm_linux_virtual_machine.myvm[each.value.vm_name].id
+  lun                = each.value.lun
+  caching            = each.value.caching
+
+  depends_on = [
+    azurerm_linux_virtual_machine.myvm,
+    azurerm_managed_disk.vm_data_disks
+  ]
 }

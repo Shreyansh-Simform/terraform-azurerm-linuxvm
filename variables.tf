@@ -77,7 +77,11 @@ variable "public_ip_name" {
   type = map(object({
     allocation_method = string  # Static or Dynamic
     sku              = optional(string, "Basic")  # Basic or Standard
-    ip_version     = optional(string, "IPv4")  # IPv4 or IPv6
+    ip_version       = optional(string, "IPv4")  # IPv4 or IPv6
+    
+    # Support for existing public IPs
+    use_existing                    = optional(bool, false)  # Set to true to use existing IP
+    existing_resource_group_name    = optional(string)      # Required if use_existing is true
   }))
 }
 
@@ -93,6 +97,10 @@ variable "network_interfaces" {
     enable_ip_forwarding         = optional(bool, false)
     enable_accelerated_networking = optional(bool, false)
     network_security_group       = optional(string)  # Reference to NSG name (optional)
+    
+    # Support for existing network interfaces
+    use_existing                    = optional(bool, false)  # Set to true to use existing NIC
+    existing_resource_group_name    = optional(string)      # Required if use_existing is true
   }))
 
 }
@@ -170,6 +178,39 @@ variable "tags" {
   description = "A map of tags to assign to all resources"
   type        = map(string)
   default     = {}
+}
+
+# Data Disk Variables
+
+# Configuration for new data disks to create
+variable "new_data_disks" {
+  description = "Map of new data disk configurations to create"
+  type = map(object({
+    storage_account_type = string  # Standard_LRS, StandardSSD_LRS, Premium_LRS
+    disk_size_gb        = number   # Size of the disk in GB
+  }))
+  default = {}
+}
+
+# Configuration for existing data disks to use
+variable "existing_data_disks" {
+  description = "Map of existing data disk configurations to use"
+  type = map(object({
+    resource_group_name = string  # Resource group where the existing disk is located
+  }))
+  default = {}
+}
+
+# Configuration for attaching data disks to VMs
+variable "vm_data_disk_attachments" {
+  description = "Map of data disk attachments to VMs"
+  type = map(object({
+    vm_name   = string  # Name of the VM to attach the disk to
+    disk_name = string  # Name of the disk (from new_data_disks or existing_data_disks)
+    lun       = number  # Logical Unit Number (0-63)
+    caching   = string  # None, ReadOnly, ReadWrite
+  }))
+  default = {}
 }
 
 

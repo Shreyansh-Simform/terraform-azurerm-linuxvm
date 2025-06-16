@@ -30,15 +30,30 @@ output "subnet_name" {
   value       = azurerm_subnet.vm-subnet.name
 }
 
-# Public IP Outputs
+# Public IP Outputs (Enhanced for Hybrid Support)
+output "new_public_ips" {
+  description = "Map of newly created public IP names to their details"
+  value       = { for k, v in azurerm_public_ip.my-pubip : k => v }
+}
+
+output "existing_public_ips" {
+  description = "Map of existing public IP names to their details"
+  value       = { for k, v in data.azurerm_public_ip.existing_public_ips : k => v }
+}
+
+output "all_public_ips" {
+  description = "Map of all public IP names (new and existing) to their details"
+  value       = local.all_public_ips
+}
+
 output "public_ip_ids" {
-  description = "Map of public IP names to their IDs"
-  value       = { for k, v in azurerm_public_ip.my-pubip : k => v.id }
+  description = "Map of all public IP names to their IDs"
+  value       = { for k, v in local.all_public_ips : k => v.id }
 }
 
 output "public_ip_addresses" {
-  description = "Map of public IP names to their IP addresses"
-  value       = { for k, v in azurerm_public_ip.my-pubip : k => v.ip_address }
+  description = "Map of all public IP names to their IP addresses"
+  value       = { for k, v in local.all_public_ips : k => v.ip_address }
 }
 
 output "public_ip_details" {
@@ -65,14 +80,29 @@ output "network_security_group_names" {
   value       = keys(azurerm_network_security_group.network-nsg)
 }
 
-# Network Interface Outputs
+# Network Interface Outputs (Enhanced for Hybrid Support)
+output "new_network_interfaces" {
+  description = "Map of newly created network interface names to their details"
+  value       = { for k, v in azurerm_network_interface.vm-nic : k => v }
+}
+
+output "existing_network_interfaces" {
+  description = "Map of existing network interface names to their details"
+  value       = { for k, v in data.azurerm_network_interface.existing_nics : k => v }
+}
+
+output "all_network_interfaces" {
+  description = "Map of all network interface names (new and existing) to their details"
+  value       = local.all_network_interfaces
+}
+
 output "network_interface_ids" {
-  description = "Map of network interface names to their IDs"
-  value       = { for k, v in azurerm_network_interface.vm-nic : k => v.id }
+  description = "Map of all network interface names to their IDs"
+  value       = { for k, v in local.all_network_interfaces : k => v.id }
 }
 
 output "network_interface_private_ips" {
-  description = "Map of network interface names to their private IP addresses"
+  description = "Map of all network interface names to their private IP addresses"
   value       = { for k, v in azurerm_network_interface.vm-nic : k => v.private_ip_address }
 }
 
@@ -165,5 +195,26 @@ output "deployment_summary" {
     virtual_machines_count   = length(azurerm_linux_virtual_machine.myvm)
     vm_names                = keys(azurerm_linux_virtual_machine.myvm)
   }
+}
+
+# Data Disk Outputs (New Feature)
+output "new_data_disks" {
+  description = "Map of newly created data disk names to their details"
+  value       = { for k, v in azurerm_managed_disk.vm_data_disks : k => v }
+}
+
+output "existing_data_disks" {
+  description = "Map of existing data disk names to their details"
+  value       = { for k, v in data.azurerm_managed_disk.existing_data_disks : k => v }
+}
+
+output "all_data_disks" {
+  description = "Map of all data disk names (new and existing) to their details"
+  value       = local.all_data_disks
+}
+
+output "data_disk_attachments" {
+  description = "Map of data disk attachment details"
+  value       = { for k, v in azurerm_virtual_machine_data_disk_attachment.vm_data_disk_attachments : k => v }
 }
 
